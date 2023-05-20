@@ -66,38 +66,58 @@ CREATE OR REPLACE TRIGGER insert_cliente
 INSTEAD OF INSERT ON cliente
 FOR EACH ROW
 DECLARE
-	countN NUMBER;
+    countN NUMBER;
 BEGIN
-	SELECT COUNT(*) INTO countN
-	FROM cliente
-	WHERE dni = :NEW.dni;
+    SELECT COUNT(*) INTO countN
+    FROM cliente
+    WHERE dni = :NEW.dni;
 
-	IF (countN != 0) THEN
-		RAISE_APPLICATION_ERROR(-20001, 'Cliente ' || :NEW.dni || ' ya existe.');
-	END IF;
+    IF countN != 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Cliente ' || :NEW.dni || ' ya existe.');
+    END IF;
 
-	IF UPPER(:NEW.sexo) = 'HOME' THEN
-		INSERT INTO cliente_home VALUES (:NEW.dni, :NEW.nome, :NEW.sexo, :NEW.telefono);
-	ELSIF UPPER(:NEW.sexo) = 'MULLER' THEN
-		INSERT INTO cliente_muller VALUES (:NEW.dni, :NEW.nome, :NEW.sexo, :NEW.telefono);
-	ELSIF UPPER(:NEW.sexo) = 'OUTRO' THEN
-		INSERT INTO cliente_outro VALUES (:NEW.dni, :NEW.nome, :NEW.sexo, :NEW.telefono);
-	ELSE
-		RAISE_APPLICATION_ERROR(-20002, 'Non hai clientes con sexo: ' || :NEW.sexo);
-	END IF;
+    IF UPPER(:NEW.sexo) = 'HOME' THEN
+        INSERT INTO cliente_home VALUES (:NEW.dni, :NEW.nome, :NEW.sexo, :NEW.telefono);
+    ELSIF UPPER(:NEW.sexo) = 'MULLER' THEN
+        INSERT INTO cliente_muller VALUES (:NEW.dni, :NEW.nome, :NEW.sexo, :NEW.telefono);
+    ELSIF UPPER(:NEW.sexo) = 'OUTRO' THEN
+        INSERT INTO cliente_outro VALUES (:NEW.dni, :NEW.nome, :NEW.sexo, :NEW.telefono);
+    ELSE
+        RAISE_APPLICATION_ERROR(-20002, 'Non hai clientes con sexo: ' || :NEW.sexo);
+    END IF;
 END;
 /
 
 CREATE OR REPLACE TRIGGER update_cliente
 INSTEAD OF UPDATE ON cliente
 FOR EACH ROW
+DECLARE
+    countN NUMBER;
 BEGIN
-	IF :NEW.dni != :OLD.dni THEN
-		RAISE_APPLICATION_ERROR(-20006, 'No se puede cambiar el DNI.');
-	END IF;
+    IF :NEW.dni != :OLD.dni THEN
+        RAISE_APPLICATION_ERROR(-20006, 'No se puede cambiar el DNI.');
+    END IF;
 
-    -- Código para actualizar el cliente
+    IF :NEW.nome != :OLD.nome THEN
+        IF UPPER(:OLD.sexo) = 'HOME' THEN
+        ELSIF UPPER(:OLD.sexo) = 'MULLER' THEN
+        ELSIF UPPER(:OLD.sexo) = 'OUTRO' THEN
+        END IF;
+    END IF;
 
+    IF :NEW.telefono != :OLD.telefono THEN
+        IF UPPER(:OLD.sexo) = 'HOME' THEN
+        ELSIF UPPER(:OLD.sexo) = 'MULLER' THEN
+        ELSIF UPPER(:OLD.sexo) = 'OUTRO' THEN
+        END IF;
+    END IF;
+
+    IF :NEW.sexo != :OLD.sexo THEN
+        IF UPPER(:OLD.sexo) = 'HOME' THEN
+        ELSIF UPPER(:OLD.sexo) = 'MULLER' THEN
+        ELSIF UPPER(:OLD.sexo) = 'OUTRO' THEN
+        END IF;
+    END IF;
 END;
 /
 
@@ -105,45 +125,95 @@ CREATE OR REPLACE TRIGGER delete_cliente
 INSTEAD OF DELETE ON cliente
 FOR EACH ROW
 BEGIN
-	IF UPPER(:OLD.sexo) = 'HOME' THEN
-		DELETE FROM cliente_home WHERE dni = :OLD.dni;
-		DELETE FROM sesion_home WHERE cliente = :OLD.dni;
-	ELSIF UPPER(:OLD.sexo) = 'MULLER' THEN
-		DELETE FROM cliente_muller WHERE dni = :OLD.dni;
-		DELETE FROM sesion_muller WHERE cliente = :OLD.dni;
-	ELSIF UPPER(:OLD.sexo) = 'OUTRO' THEN
-		DELETE FROM cliente_outro WHERE dni = :OLD.dni;
-		DELETE FROM sesion_outro WHERE cliente = :OLD.dni;
-	END IF;
+    IF UPPER(:OLD.sexo) = 'HOME' THEN
+        DELETE FROM cliente_home WHERE dni = :OLD.dni;
+        DELETE FROM sesion_home WHERE cliente = :OLD.dni;
+    ELSIF UPPER(:OLD.sexo) = 'MULLER' THEN
+        DELETE FROM cliente_muller WHERE dni = :OLD.dni;
+        DELETE FROM sesion_muller WHERE cliente = :OLD.dni;
+    ELSIF UPPER(:OLD.sexo) = 'OUTRO' THEN
+        DELETE FROM cliente_outro WHERE dni = :OLD.dni;
+        DELETE FROM sesion_outro WHERE cliente = :OLD.dni;
+    END IF;
 END;
 /
 
 CREATE OR REPLACE TRIGGER insert_sesion
 INSTEAD OF INSERT ON sesion
 FOR EACH ROW
+DECLARE
+    countN NUMBER;
+    clienteAux cliente%ROWTYPE;
 BEGIN
-
-    -- Código para insertar en la tabla de sesiones correspondiente
-
+    SELECT COUNT(*) INTO countN
+    FROM sesion
+    WHERE codsesion = :NEW.codsesion;
+    
+    IF countN != 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Sesión ' || :NEW.codsesion || ' ya existe.');
+    END IF;
+    
+    SELECT COUNT(*) INTO countN
+    FROM cliente
+    WHERE dni = :NEW.cliente;
+    
+    IF countN = 0 THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Cliente ' || :NEW.cliente || ' no existe.');
+    END IF;
+    
+    SELECT * INTO clienteAux
+    FROM cliente
+    WHERE dni = :NEW.cliente;
+    
+    IF UPPER(clienteAux.sexo) = 'HOME' THEN
+        INSERT INTO sesion_home VALUES (:NEW.codsesion, :NEW.datahora, :NEW.cliente);
+    ELSIF UPPER(clienteAux.sexo) = 'MULLER' THEN
+        INSERT INTO sesion_muller VALUES (:NEW.codsesion, :NEW.datahora, :NEW.cliente);
+    ELSIF UPPER(clienteAux.sexo) = 'OUTRO' THEN
+        INSERT INTO sesion_outro VALUES (:NEW.codsesion, :NEW.datahora, :NEW.cliente);
+    END IF;
 END;
 /
 
 CREATE OR REPLACE TRIGGER update_sesion
 INSTEAD OF UPDATE ON sesion
 FOR EACH ROW
+DECLARE
+    countN NUMBER;
+    clienteAux cliente%ROWTYPE;
+    oldClienteAux cliente%ROWTYPE;
 BEGIN
-
-    -- Código para actualizar la tabla de sesiones correspondiente
-
+    IF :NEW.codsesion != :OLD.codsesion THEN
+        RAISE_APPLICATION_ERROR();
+    END IF;
 END;
 /
 
 CREATE OR REPLACE TRIGGER delete_sesion
 INSTEAD OF DELETE ON sesion
 FOR EACH ROW
+DECLARE
+    countN NUMBER;
+    clienteAux cliente%ROWTYPE;
 BEGIN
-
-    -- Código para eliminar de la tabla de sesiones correspondiente
-
+    SELECT COUNT(*) INTO countN
+    FROM cliente
+    WHERE dni = :OLD.cliente;
+    
+    IF countN = 0 THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Cliente ' || :OLD.cliente || ' no existe.');
+    END IF;
+    
+    SELECT * INTO clienteAux
+    FROM cliente
+    WHERE dni = :OLD.cliente;
+    
+    IF UPPER(clienteAux.sexo) = 'HOME' THEN
+        DELETE FROM sesion_home WHERE codsesion = :OLD.codsesion;
+    ELSIF UPPER(clienteAux.sexo) = 'MULLER' THEN
+        DELETE FROM sesion_muller WHERE codsesion = :OLD.codsesion;
+    ELSIF UPPER(clienteAux.sexo) = 'OUTRO' THEN
+        DELETE FROM sesion_outro WHERE codsesion = :OLD.codsesion;
+    END IF;
 END;
 /
