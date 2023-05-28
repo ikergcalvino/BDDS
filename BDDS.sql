@@ -1,6 +1,5 @@
 DROP TABLE IF EXISTS cliente_home;
 DROP TABLE IF EXISTS cliente_muller;
-
 DROP TABLE IF EXISTS sesion_home;
 DROP TABLE IF EXISTS sesion_muller;
 
@@ -53,7 +52,7 @@ BEGIN
     WHERE dni = :NEW.dni;
 
     IF countN != 0 THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Cliente ' || :NEW.dni || ' ya existe.');
+        RAISE_APPLICATION_ERROR(-20001, 'Cliente ' || :NEW.dni || ' xa existe.');
     END IF;
 
     IF UPPER(:NEW.sexo) = 'HOME' THEN
@@ -61,7 +60,7 @@ BEGIN
     ELSIF UPPER(:NEW.sexo) = 'MULLER' THEN
         INSERT INTO cliente_muller VALUES (:NEW.dni, :NEW.nome, :NEW.sexo, :NEW.telefono);
     ELSE
-        RAISE_APPLICATION_ERROR(-20002, 'No hay clientes con sexo: ' || :NEW.sexo);
+        RAISE_APPLICATION_ERROR(-20002, 'Non hai clientes con sexo: ' || :NEW.sexo);
     END IF;
 END;
 /
@@ -73,7 +72,7 @@ DECLARE
     countN NUMBER;
 BEGIN
     IF :NEW.dni != :OLD.dni THEN
-        RAISE_APPLICATION_ERROR(-20006, 'No se puede cambiar el DNI.');
+        RAISE_APPLICATION_ERROR(-20006, 'Non se pode cambiar o DNI.');
     END IF;
 
     IF :NEW.nome != :OLD.nome THEN
@@ -95,6 +94,8 @@ BEGIN
             INSERT INTO sesion_muller SELECT * FROM sesion_home WHERE cliente = :OLD.dni;
             DELETE FROM sesion_home WHERE cliente = :OLD.dni;
             DELETE FROM cliente_home WHERE dni = :OLD.dni;
+        ELSE
+            RAISE_APPLICATION_ERROR();
         END IF;
     END IF;
 
@@ -177,7 +178,39 @@ BEGIN
         RAISE_APPLICATION_ERROR(-20004, 'El cliente ' || :NEW.cliente || ' no existe.');
     END IF;
 
-    SELECT * INTO clienteAux FROM cliente WHERE dni = :NEW.cliente;
+    SELECT * INTO clienteAux
+    FROM cliente
+    WHERE dni = :NEW.cliente;
+
+    IF :OLD.datahora != :NEW.datahora THEN
+        IF UPPER(clienteAux.sexo) = 'HOME' THEN
+            UPDATE
+        IF UPPER(clienteAux.sexo) = 'MULLER' THEN
+            UPDATE
+        END IF;
+    END IF;
+
+    IF :OLD.codsesion != :NEW.codsesion THEN
+        SELECT * INTO oldclienteAux
+        FROM cliente
+        WHERE cliente = :OLD.cliente;
+
+        IF UPPER(clienteAux.sexo) = UPPER(oldClienteAux.sexo) THEN
+            IF UPPER(clienteAux.sexo) = 'HOME' THEN
+                UPDATE
+            IF UPPER(clienteAux.sexo) = 'MULLER' THEN
+                UPDATE
+            END IF;
+        ELSE
+            IF UPPER(clienteAux.sexo) = 'HOME' THEN
+                INSERT into cliente_home select codsesion, datahora, :NEW.cliente from sesion_muller WHERE codsesion=:OLD.codsesion;
+                DELETE from cliente_muller where codsesion = :OLD.codsesion;
+            IF UPPER(clienteAux.sexo) = 'MULLER' THEN
+                INSERT into cliente_muller SELECT codsesion, datahora, :NEW.cliente from sesion_home WHERE codsesion=:OLD.codsesion;
+                DELETE from cliente_home WHERE codsesion=:old.codsesion;
+            END IF;
+        END IF;
+    END IF;
 END;
 /
 
