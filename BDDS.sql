@@ -20,14 +20,14 @@ CREATE TABLE cliente_muller (
 CREATE TABLE sesion_home (
     codsesion NUMERIC(6, 0) PRIMARY KEY,
     datahora DATE,
-    cliente VARCHAR(10) NOT NULL,
+    cliente VARCHAR(1) NOT NULL,
     FOREIGN KEY (cliente) REFERENCES cliente_home(dni) ON DELETE CASCADE
 );
 
 CREATE TABLE sesion_muller (
     codsesion NUMERIC(6, 0) PRIMARY KEY,
     datahora DATE,
-    cliente VARCHAR(10) NOT NULL,
+    cliente VARCHAR(1) NOT NULL,
     FOREIGN KEY (cliente) REFERENCES cliente_muller(dni) ON DELETE CASCADE
 );
 
@@ -52,15 +52,15 @@ BEGIN
     WHERE dni = :NEW.dni;
 
     IF countN != 0 THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Cliente ' || :NEW.dni || ' xa existe.');
+        RAISE_APPLICATION_ERROR(-20001, 'O cliente ' || :NEW.dni || ' xa existe.');
     END IF;
 
-    IF UPPER(:NEW.sexo) = 'HOME' THEN
+    IF UPPER(:NEW.sexo) = 'H' THEN
         INSERT INTO cliente_home VALUES (:NEW.dni, :NEW.nome, :NEW.sexo, :NEW.telefono);
-    ELSIF UPPER(:NEW.sexo) = 'MULLER' THEN
+    ELSIF UPPER(:NEW.sexo) = 'M' THEN
         INSERT INTO cliente_muller VALUES (:NEW.dni, :NEW.nome, :NEW.sexo, :NEW.telefono);
     ELSE
-        RAISE_APPLICATION_ERROR(-20002, 'Non hai clientes con sexo: ' || :NEW.sexo);
+        RAISE_APPLICATION_ERROR(-20002, 'Non hai clientes co sexo: ' || :NEW.sexo);
     END IF;
 END;
 /
@@ -76,33 +76,33 @@ BEGIN
     END IF;
 
     IF :NEW.nome != :OLD.nome THEN
-        IF UPPER(:OLD.sexo) = 'HOME' THEN
+        IF UPPER(:OLD.sexo) = 'H' THEN
             UPDATE cliente_home SET nome = :NEW.nome WHERE dni = :OLD.dni;
-        ELSIF UPPER(:OLD.sexo) = 'MULLER' THEN
+        ELSIF UPPER(:OLD.sexo) = 'M' THEN
             UPDATE cliente_muller SET nome = :NEW.nome WHERE dni = :OLD.dni;
         END IF;
     END IF;
 
     IF :NEW.sexo != :OLD.sexo THEN
-        IF UPPER(:NEW.sexo) = 'HOME' THEN
+        IF UPPER(:NEW.sexo) = 'H' THEN
             INSERT INTO cliente_home SELECT dni, nome, :NEW.sexo, telefono FROM cliente_muller WHERE dni = :OLD.dni;
             INSERT INTO sesion_home SELECT * FROM sesion_muller WHERE cliente = :OLD.dni;
             DELETE FROM sesion_muller WHERE cliente = :OLD.dni;
             DELETE FROM cliente_muller WHERE dni = :OLD.dni;
-        ELSIF UPPER(:NEW.sexo) = 'MULLER' THEN
+        ELSIF UPPER(:NEW.sexo) = 'M' THEN
             INSERT INTO cliente_muller SELECT dni, nome, :NEW.sexo, telefono FROM cliente_home WHERE dni = :OLD.dni;
             INSERT INTO sesion_muller SELECT * FROM sesion_home WHERE cliente = :OLD.dni;
             DELETE FROM sesion_home WHERE cliente = :OLD.dni;
             DELETE FROM cliente_home WHERE dni = :OLD.dni;
         ELSE
-            RAISE_APPLICATION_ERROR();
+            RAISE_APPLICATION_ERROR(-20007, 'Sexo non válido: ' || :NEW.sexo);
         END IF;
     END IF;
 
     IF :NEW.telefono != :OLD.telefono THEN
-        IF UPPER(:OLD.sexo) = 'HOME' THEN
+        IF UPPER(:OLD.sexo) = 'H' THEN
             UPDATE cliente_home SET telefono = :NEW.telefono WHERE dni = :OLD.dni;
-        ELSIF UPPER(:OLD.sexo) = 'MULLER' THEN
+        ELSIF UPPER(:OLD.sexo) = 'M' THEN
             UPDATE cliente_muller SET telefono = :NEW.telefono WHERE dni = :OLD.dni;
         END IF;
     END IF;
@@ -113,10 +113,10 @@ CREATE OR REPLACE TRIGGER delete_cliente
 INSTEAD OF DELETE ON cliente
 FOR EACH ROW
 BEGIN
-    IF UPPER(:OLD.sexo) = 'HOME' THEN
+    IF UPPER(:OLD.sexo) = 'H' THEN
         DELETE FROM cliente_home WHERE dni = :OLD.dni;
         DELETE FROM sesion_home WHERE cliente = :OLD.dni;
-    ELSIF UPPER(:OLD.sexo) = 'MULLER' THEN
+    ELSIF UPPER(:OLD.sexo) = 'M' THEN
         DELETE FROM cliente_muller WHERE dni = :OLD.dni;
         DELETE FROM sesion_muller WHERE cliente = :OLD.dni;
     END IF;
@@ -133,26 +133,26 @@ BEGIN
     SELECT COUNT(*) INTO countN
     FROM sesion
     WHERE codsesion = :NEW.codsesion;
-    
+
     IF countN != 0 THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Sesión ' || :NEW.codsesion || ' ya existe.');
+        RAISE_APPLICATION_ERROR(-20001, 'A sesión ' || :NEW.codsesion || ' xa existe.');
     END IF;
-    
+
     SELECT COUNT(*) INTO countN
     FROM cliente
     WHERE dni = :NEW.cliente;
-    
+
     IF countN = 0 THEN
-        RAISE_APPLICATION_ERROR(-20002, 'Cliente ' || :NEW.cliente || ' no existe.');
+        RAISE_APPLICATION_ERROR(-20002, 'O cliente ' || :NEW.cliente || ' non existe.');
     END IF;
-    
+
     SELECT * INTO clienteAux
     FROM cliente
     WHERE dni = :NEW.cliente;
-    
-    IF UPPER(clienteAux.sexo) = 'HOME' THEN
+
+    IF UPPER(clienteAux.sexo) = 'H' THEN
         INSERT INTO sesion_home VALUES (:NEW.codsesion, :NEW.datahora, :NEW.cliente);
-    ELSIF UPPER(clienteAux.sexo) = 'MULLER' THEN
+    ELSIF UPPER(clienteAux.sexo) = 'M' THEN
         INSERT INTO sesion_muller VALUES (:NEW.codsesion, :NEW.datahora, :NEW.cliente);
     END IF;
 END;
@@ -167,7 +167,7 @@ DECLARE
     oldClienteAux cliente%ROWTYPE;
 BEGIN
     IF :NEW.codsesion != :OLD.codsesion THEN
-        RAISE_APPLICATION_ERROR(-20003, 'No se puede cambiar el código de sesión.');
+        RAISE_APPLICATION_ERROR(-20003, 'Non se pode cambiar o código de sesión.');
     END IF;
 
     SELECT COUNT(*) INTO countN
@@ -175,7 +175,7 @@ BEGIN
     WHERE dni = :NEW.cliente;
 
     IF countN = 0 THEN
-        RAISE_APPLICATION_ERROR(-20004, 'El cliente ' || :NEW.cliente || ' no existe.');
+        RAISE_APPLICATION_ERROR(-20004, 'O cliente ' || :NEW.cliente || ' non existe.');
     END IF;
 
     SELECT * INTO clienteAux
@@ -183,31 +183,31 @@ BEGIN
     WHERE dni = :NEW.cliente;
 
     IF :OLD.datahora != :NEW.datahora THEN
-        IF UPPER(clienteAux.sexo) = 'HOME' THEN
-            UPDATE
-        IF UPPER(clienteAux.sexo) = 'MULLER' THEN
-            UPDATE
+        IF UPPER(clienteAux.sexo) = 'H' THEN
+            UPDATE sesion_home SET datahora = :NEW.datahora WHERE codsesion = :OLD.codsesion;
+        ELSIF UPPER(clienteAux.sexo) = 'M' THEN
+            UPDATE sesion_muller SET datahora = :NEW.datahora WHERE codsesion = :OLD.codsesion;
         END IF;
     END IF;
 
-    IF :OLD.codsesion != :NEW.codsesion THEN
-        SELECT * INTO oldclienteAux
+    IF :OLD.cliente != :NEW.cliente THEN
+        SELECT * INTO oldClienteAux
         FROM cliente
-        WHERE cliente = :OLD.cliente;
+        WHERE dni = :OLD.cliente;
 
         IF UPPER(clienteAux.sexo) = UPPER(oldClienteAux.sexo) THEN
-            IF UPPER(clienteAux.sexo) = 'HOME' THEN
-                UPDATE
-            IF UPPER(clienteAux.sexo) = 'MULLER' THEN
-                UPDATE
+            IF UPPER(clienteAux.sexo) = 'H' THEN
+                UPDATE sesion_home SET cliente = :NEW.cliente WHERE codsesion = :OLD.codsesion;
+            ELSIF UPPER(clienteAux.sexo) = 'M' THEN
+                UPDATE sesion_muller SET cliente = :NEW.cliente WHERE codsesion = :OLD.codsesion;
             END IF;
         ELSE
-            IF UPPER(clienteAux.sexo) = 'HOME' THEN
-                INSERT into cliente_home select codsesion, datahora, :NEW.cliente from sesion_muller WHERE codsesion=:OLD.codsesion;
-                DELETE from cliente_muller where codsesion = :OLD.codsesion;
-            IF UPPER(clienteAux.sexo) = 'MULLER' THEN
-                INSERT into cliente_muller SELECT codsesion, datahora, :NEW.cliente from sesion_home WHERE codsesion=:OLD.codsesion;
-                DELETE from cliente_home WHERE codsesion=:old.codsesion;
+            IF UPPER(clienteAux.sexo) = 'H' THEN
+                INSERT INTO sesion_home SELECT codsesion, datahora, :NEW.cliente FROM sesion_muller WHERE codsesion = :OLD.codsesion;
+                DELETE FROM sesion_muller WHERE codsesion = :OLD.codsesion;
+            ELSIF UPPER(clienteAux.sexo) = 'M' THEN
+                INSERT INTO sesion_muller SELECT codsesion, datahora, :NEW.cliente FROM sesion_home WHERE codsesion = :OLD.codsesion;
+                DELETE FROM sesion_home WHERE codsesion = :OLD.codsesion;
             END IF;
         END IF;
     END IF;
@@ -226,16 +226,16 @@ BEGIN
     WHERE dni = :OLD.cliente;
 
     IF countN = 0 THEN
-        RAISE_APPLICATION_ERROR(-20005, 'El cliente ' || :OLD.cliente || ' no existe.');
+        RAISE_APPLICATION_ERROR(-20005, 'O cliente ' || :OLD.cliente || ' non existe.');
     END IF;
 
     SELECT * INTO clienteAux
     FROM cliente
     WHERE dni = :OLD.cliente;
 
-    IF UPPER(clienteAux.sexo) = 'HOME' THEN
+    IF UPPER(clienteAux.sexo) = 'H' THEN
         DELETE FROM sesion_home WHERE codsesion = :OLD.codsesion;
-    ELSIF UPPER(clienteAux.sexo) = 'MULLER' THEN
+    ELSIF UPPER(clienteAux.sexo) = 'M' THEN
         DELETE FROM sesion_muller WHERE codsesion = :OLD.codsesion;
     END IF;
 END;
